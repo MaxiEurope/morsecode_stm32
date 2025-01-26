@@ -1,6 +1,8 @@
 #include "main.h"
 #include "joystick.h"
 
+#include <stdio.h>
+
 uint8_t JOYSTICK_ReadRegister(uint8_t reg) {
 	uint8_t value;
 	HAL_I2C_Mem_Read(&hi2c1, JOYSTICK_I2C_ADDRESS << 1, reg, I2C_MEMADD_SIZE_8BIT, &value, 1, I2C_TIMEOUT);

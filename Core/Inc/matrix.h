@@ -3,8 +3,8 @@
 
 #include <string.h>
 
-#define MATRIX_SPI hspi1
-extern SPI_HandleTypeDef MATRIX_SPI;
+//#define MATRIX_SPI hspi1
+//extern SPI_HandleTypeDef MATRIX_SPI;
 
 #define MATRIX_CS_PORT GPIOA
 #define MATRIX_CS_PIN GPIO_PIN_6
