@@ -25,6 +25,7 @@
 #include <string.h>
 
 #include "joystick.h"
+#include "matrix.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -60,8 +61,8 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
-static void MX_TIM2_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 int _write(int file, char *ptr, int len);
 /* USER CODE END PFP */
@@ -70,6 +71,19 @@ int _write(int file, char *ptr, int len);
 /* USER CODE BEGIN 0 */
 uint32_t button_press_time = 0;
 uint32_t button_release_time = 0;
+
+void scanI2C() {
+    char msg[64];
+    for (uint8_t i = 0; i < 128; i++) {
+        if (HAL_I2C_IsDeviceReady(&hi2c1, (i << 1), 1, 100) == HAL_OK) {
+            sprintf(msg, "Device found at 0x%X\r\n", i);
+            HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 100);
+        } else {
+        		sprintf(msg, "NOT found at 0x%X\r\n", i);
+        		HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 100);
+        }
+    }
+}
 /* USER CODE END 0 */
 
 /**
@@ -103,14 +117,21 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_I2C1_Init();
-  MX_TIM2_Init();
   MX_SPI1_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_Base_Start_IT(&htim2);
-
   printf("starting up\r\n");
 
+  MATRIX_Init();
+  for (uint8_t i = 0; i < 8; i++) {
+  	MATRIX_WriteRotate(i + 1, char_m[i]);
+  }
+
+  scanI2C();
+
   JOYSTICK_Init();
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -255,7 +276,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -422,6 +443,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+	printf("yeah somethng here\r\n");
+	if (htim->Instance == TIM2) {
+	        printf("Timer Interrupt Triggered\r\n");
+	    }
 	if (htim->Instance == TIM2) {
 		int8_t x = 0, y = 0;
 
