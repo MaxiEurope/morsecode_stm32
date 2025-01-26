@@ -18,9 +18,9 @@ uint8_t matrixData[8] = {0};
 
 void MATRIX_Write(uint8_t address, uint8_t data) {
 	HAL_GPIO_WritePin(MATRIX_CS_PORT, MATRIX_CS_PIN, GPIO_PIN_RESET);
-//	HAL_SPI_Transmit(&hspi1, &address, 1, HAL_MAX_DELAY);
+	HAL_SPI_Transmit(&hspi1, &address, 1, HAL_MAX_DELAY);
 
-//	HAL_SPI_Transmit(&hspi1, &data, 1, HAL_MAX_DELAY);
+	HAL_SPI_Transmit(&hspi1, &data, 1, HAL_MAX_DELAY);
 	HAL_GPIO_WritePin(MATRIX_CS_PORT, MATRIX_CS_PIN, GPIO_PIN_SET);
 }
 
