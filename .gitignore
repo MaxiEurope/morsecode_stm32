@@ -54,7 +54,6 @@ dkms.conf
 # Custom
 *.cproject
 *.mxproject
-*.project
 */.settings/*
 */Debug/*
 *.launch
