@@ -17,6 +17,8 @@ extern SPI_HandleTypeDef MATRIX_SPI;
 #define MATRIX_DISPLAY_TEST 0x0F
 
 extern uint8_t char_m[8];
+extern uint8_t char_r[8];
+extern uint8_t char_s[8];
 
 void MATRIX_Write(uint8_t address, uint8_t data);
 void MATRIX_WriteRotate(uint8_t address, uint8_t data);

@@ -420,10 +420,20 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 		if (HAL_GPIO_ReadPin(JOYSTICK_CS_PORT, JOYSTICK_CS_PIN) == GPIO_PIN_RESET) { // low
 			button_press_time = HAL_GetTick();
 			printf("PB0 Pressed (LOW) at %lu ms\r\n", button_press_time);
+			MATRIX_Clear();
+
+			for (uint8_t i = 0; i < 8; i++) {
+				MATRIX_WriteRotate(i + 1, char_r[i]);
+			}
 		} else { // high
 			button_release_time = HAL_GetTick();
 			uint32_t press_duration = button_release_time - button_press_time;
 			printf("PB0 Released (HIGH) at %lu ms, Duration: %lu ms\r\n", button_release_time, press_duration);
+
+			MATRIX_Clear();
+			for (uint8_t i = 0; i < 8; i++) {
+				MATRIX_WriteRotate(i + 1, char_s[i]);
+			}
 		}
 	}
 }
