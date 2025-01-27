@@ -35,7 +35,14 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define DOT_PATTERN 0x18
+#define DASH_PATTERN 0x3C
 
+#define JOYSTICK_THRESHOLD 30
+
+#define LETTER_TIMEOUT_TICKS 30
+
+#define MAX_MORSE_PARTS 4
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -65,12 +72,22 @@ static void MX_USART2_UART_Init(void);
 static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
 int _write(int file, char *ptr, int len);
+
+static void AddMorseSignal(uint8_t pattern);
+static void EndLetter(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 uint32_t button_press_time = 0;
 uint32_t button_release_time = 0;
+
+uint8_t hasInitialChar = 1;
+
+static uint8_t morseIndex = 0;
+static uint16_t idleCounter = 0;
+
+static uint8_t joystickActive = 0;
 /* USER CODE END 0 */
 
 /**
@@ -111,6 +128,7 @@ int main(void)
 
   MATRIX_Init();
   MATRIX_Clear();
+
   for (uint8_t i = 0; i < 8; i++) {
   	MATRIX_WriteRotate(i + 1, char_m[i]);
   }
@@ -415,25 +433,44 @@ int _write(int file, char *ptr, int len) {
 	return len;
 }
 
+static void AddMorseSignal(uint8_t pattern) {
+  if (morseIndex >= MAX_MORSE_PARTS) {
+    return EndLetter();
+  }
+
+  MATRIX_WriteRotate(morseIndex + 1, pattern); // display code
+
+  morseIndex++;
+
+  idleCounter = 0;
+}
+
+static void EndLetter(void) {
+  printf("End of letter. Clearing matrix.\r\n");
+
+  MATRIX_Clear();
+
+  morseIndex = 0;
+
+  idleCounter = 0;
+}
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	if (GPIO_Pin == JOYSTICK_CS_PIN) {
+		if (hasInitialChar) {
+			MATRIX_Clear(); // clear matrix if the initial "M" characters is still present
+			hasInitialChar = 0;
+		}
+
 		if (HAL_GPIO_ReadPin(JOYSTICK_CS_PORT, JOYSTICK_CS_PIN) == GPIO_PIN_RESET) { // low
 			button_press_time = HAL_GetTick();
 			printf("PB0 Pressed (LOW) at %lu ms\r\n", button_press_time);
-			MATRIX_Clear();
-
-			for (uint8_t i = 0; i < 8; i++) {
-				MATRIX_WriteRotate(i + 1, char_r[i]);
-			}
 		} else { // high
 			button_release_time = HAL_GetTick();
 			uint32_t press_duration = button_release_time - button_press_time;
 			printf("PB0 Released (HIGH) at %lu ms, Duration: %lu ms\r\n", button_release_time, press_duration);
 
-			MATRIX_Clear();
-			for (uint8_t i = 0; i < 8; i++) {
-				MATRIX_WriteRotate(i + 1, char_s[i]);
-			}
+			AddMorseSignal(DOT_PATTERN);
 		}
 	}
 }
@@ -444,6 +481,29 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 		JOYSTICK_GetCoords(&x, &y);
 		printf("Joystick Position: X = %d, Y = %d\r\n", x, y);
+
+		uint8_t isMoved = 0;
+		if ((x > JOYSTICK_THRESHOLD) || (x < -JOYSTICK_THRESHOLD) || (y > JOYSTICK_THRESHOLD) || (y < -JOYSTICK_THRESHOLD)) {
+			if (hasInitialChar) {
+				MATRIX_Clear(); // clear matrix if the initial "M" characters is still present
+				hasInitialChar = 0;
+			}
+
+			isMoved = 1;
+		}
+
+		if (isMoved && (joystickActive == 0)) {
+			printf("Joystick dash input: x=%d y=%d\r\n", x, y);
+			AddMorseSignal(DASH_PATTERN);
+			joystickActive = 1;
+		} else if (!isMoved) {
+			joystickActive = 0; // joystick position is neutral
+		}
+
+		idleCounter++;
+		if (idleCounter >= LETTER_TIMEOUT_TICKS && morseIndex > 0) {
+			EndLetter();
+		}
 	}
 }
 /* USER CODE END 4 */
