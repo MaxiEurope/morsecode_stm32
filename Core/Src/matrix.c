@@ -303,7 +303,7 @@ void MATRIX_WriteRotate(uint8_t address, uint8_t data) {
 	if (address >= 0x01 && address <= 0x08) { // check if 8x8 matrix row
 		matrixData[address - 1] = data;
 
-		uint8_t rotatedData[8] = {0}; // 90 degree rot
+		uint8_t rotatedData[8] = {0}; // 90 degree rotation
 
 		for (uint8_t row = 0; row < 8; row++) {
 			for (uint8_t col = 0; col < 8; col++) {
@@ -331,7 +331,7 @@ void MATRIX_Clear() {
 void MATRIX_Init() {
 	MATRIX_Write(MATRIX_SHUTDOWN_REG, 0x01); // enable display
 	MATRIX_Write(MATRIX_DECODE_MODE, 0x00); // no bcd decoding
-	MATRIX_Write(MATRIX_INTENSITY, 0x00); // low brightness
+	MATRIX_Write(MATRIX_INTENSITY, 0x0A); // medium brightness
 	MATRIX_Write(MATRIX_SCAN_LIMIT, 0x07); // display all 8 rows
 	MATRIX_Write(MATRIX_DISPLAY_TEST, 0x00);
 }

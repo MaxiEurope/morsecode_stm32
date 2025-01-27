@@ -30,7 +30,10 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef struct {
+	char letter;
+	const char *morse;
+} MorseEntry;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -60,7 +63,49 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+static const MorseEntry MorseTable[] = {
+	{ 'A', ".-" },
+	{ 'B', "-..." },
+	{ 'C', "-.-." },
+	{ 'D', "-.." },
+	{ 'E', "." },
+	{ 'F', "..-." },
+	{ 'G', "--." },
+	{ 'H', "...." },
+	{ 'I', ".." },
+	{ 'J', ".---" },
+	{ 'K', "-.-" },
+	{ 'L', ".-.." },
+	{ 'M', "--" },
+	{ 'N', "-." },
+	{ 'O', "---" },
+	{ 'P', ".--." },
+	{ 'Q', "--.-" },
+	{ 'R', ".-." },
+	{ 'S', "..." },
+	{ 'T', "-" },
+	{ 'U', "..-" },
+	{ 'V', "...-" },
+	{ 'W', ".--" },
+	{ 'X', "-..-" },
+	{ 'Y', "-.--" },
+	{ 'Z', "--.." }
+};
 
+#define MORSE_TABLE_SIZE  (sizeof(MorseTable)/sizeof(MorseTable[0]))
+
+static char morseBuffer[MAX_MORSE_PARTS + 1] = {0};
+
+static uint8_t morseIndex = 0;
+static uint16_t idleCounter = 0;
+
+uint32_t button_press_time = 0;
+uint32_t button_release_time = 0;
+
+uint8_t hasInitialChar = 1;
+static uint8_t hasDisplayedChar  = 0;
+
+static uint8_t joystickActive = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -75,19 +120,14 @@ int _write(int file, char *ptr, int len);
 
 static void AddMorseSignal(uint8_t pattern);
 static void EndLetter(void);
+static char DecodeMorse(const char* code);
+static void DisplayLetter(char letter);
+static void ClearIfNeeded(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint32_t button_press_time = 0;
-uint32_t button_release_time = 0;
 
-uint8_t hasInitialChar = 1;
-
-static uint8_t morseIndex = 0;
-static uint16_t idleCounter = 0;
-
-static uint8_t joystickActive = 0;
 /* USER CODE END 0 */
 
 /**
@@ -440,28 +480,118 @@ static void AddMorseSignal(uint8_t pattern) {
 
   MATRIX_WriteRotate(morseIndex + 1, pattern); // display code
 
+  if (pattern == DOT_PATTERN) {
+  	morseBuffer[morseIndex] = '.';
+  } else {
+  	morseBuffer[morseIndex] = '-';
+  }
+
   morseIndex++;
+  morseBuffer[morseIndex] = '\0';
 
   idleCounter = 0;
 }
 
 static void EndLetter(void) {
-  printf("End of letter. Clearing matrix.\r\n");
+	printf("End of letter. Morse code = \"%s\"\r\n", morseBuffer);
 
-  MATRIX_Clear();
+	char letter = DecodeMorse(morseBuffer);
+	if (letter != 0) {
+		printf("Decoded letter: %c\r\n", letter);
+
+		MATRIX_Clear();
+		DisplayLetter(letter);
+		hasDisplayedChar = 1;
+	} else {
+		printf("Invalid Morse code: no letter found\r\n");
+
+		MATRIX_Clear();
+		hasDisplayedChar = 0;
+	}
+
+	memset(morseBuffer, 0, sizeof(morseBuffer));
 
   morseIndex = 0;
 
   idleCounter = 0;
 }
 
+static char DecodeMorse(const char* code) {
+	if (code == NULL || code[0] == '\0') {
+		return 0;
+	}
+
+	for (uint8_t i = 0; i < MORSE_TABLE_SIZE; i++) {
+		if (strcmp(MorseTable[i].morse, code) == 0) {
+			return MorseTable[i].letter;
+		}
+	}
+
+	return 0;
+}
+
+static void DisplayLetter(char letter) {
+	if (letter >= 'a' && letter <= 'z') {
+		letter = letter - 'a' + 'A';
+	}
+
+	if (letter < 'A' || letter > 'Z') {
+		return;
+	}
+
+	const uint8_t *pattern = NULL;
+
+	switch (letter) {
+		case 'A': pattern = char_a; break;
+		case 'B': pattern = char_b; break;
+		case 'C': pattern = char_c; break;
+		case 'D': pattern = char_d; break;
+		case 'E': pattern = char_e; break;
+		case 'F': pattern = char_f; break;
+		case 'G': pattern = char_g; break;
+		case 'H': pattern = char_h; break;
+		case 'I': pattern = char_i; break;
+		case 'J': pattern = char_j; break;
+		case 'K': pattern = char_k; break;
+		case 'L': pattern = char_l; break;
+		case 'M': pattern = char_m; break;
+		case 'N': pattern = char_n; break;
+		case 'O': pattern = char_o; break;
+		case 'P': pattern = char_p; break;
+		case 'Q': pattern = char_q; break;
+		case 'R': pattern = char_r; break;
+		case 'S': pattern = char_s; break;
+		case 'T': pattern = char_t; break;
+		case 'U': pattern = char_u; break;
+		case 'V': pattern = char_v; break;
+		case 'W': pattern = char_w; break;
+		case 'X': pattern = char_x; break;
+		case 'Y': pattern = char_y; break;
+		case 'Z': pattern = char_z; break;
+		default:
+			break;
+	}
+
+	if (pattern) {
+		for (uint8_t i = 0; i < 8; i++) {
+			MATRIX_WriteRotate(i + 1, pattern[i]);
+		}
+	}
+}
+
+static void ClearIfNeeded(void) {
+	// clear matrix if the initial "M" characters is still present
+	if (hasInitialChar) {
+		MATRIX_Clear();
+		hasInitialChar = 0;
+	} else if (hasDisplayedChar) { // or if the morse code char is present
+		MATRIX_Clear();
+		hasDisplayedChar = 0;
+	}
+}
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	if (GPIO_Pin == JOYSTICK_CS_PIN) {
-		if (hasInitialChar) {
-			MATRIX_Clear(); // clear matrix if the initial "M" characters is still present
-			hasInitialChar = 0;
-		}
-
 		if (HAL_GPIO_ReadPin(JOYSTICK_CS_PORT, JOYSTICK_CS_PIN) == GPIO_PIN_RESET) { // low
 			button_press_time = HAL_GetTick();
 			printf("PB0 Pressed (LOW) at %lu ms\r\n", button_press_time);
@@ -469,6 +599,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 			button_release_time = HAL_GetTick();
 			uint32_t press_duration = button_release_time - button_press_time;
 			printf("PB0 Released (HIGH) at %lu ms, Duration: %lu ms\r\n", button_release_time, press_duration);
+
+			ClearIfNeeded();
 
 			AddMorseSignal(DOT_PATTERN);
 		}
@@ -478,23 +610,21 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance == TIM2) {
 		int8_t x = 0, y = 0;
-
 		JOYSTICK_GetCoords(&x, &y);
+
 		printf("Joystick Position: X = %d, Y = %d\r\n", x, y);
 
 		uint8_t isMoved = 0;
 		if ((x > JOYSTICK_THRESHOLD) || (x < -JOYSTICK_THRESHOLD) || (y > JOYSTICK_THRESHOLD) || (y < -JOYSTICK_THRESHOLD)) {
-			if (hasInitialChar) {
-				MATRIX_Clear(); // clear matrix if the initial "M" characters is still present
-				hasInitialChar = 0;
-			}
-
 			isMoved = 1;
 		}
 
 		if (isMoved && (joystickActive == 0)) {
 			printf("Joystick dash input: x=%d y=%d\r\n", x, y);
+
+			ClearIfNeeded();
 			AddMorseSignal(DASH_PATTERN);
+
 			joystickActive = 1;
 		} else if (!isMoved) {
 			joystickActive = 0; // joystick position is neutral
